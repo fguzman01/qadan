@@ -1,0 +1,39 @@
+{
+  "//": "experimentalDecorators NO incluido intencionalmente: usamos decoradores TC39 Stage 3 (TypeScript 5+, Playwright 1.44+). Ver .claude/skills/framework-core/SKILL.md.",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "commonjs",
+    "lib": ["ES2022", "DOM"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "moduleResolution": "node",
+    "ignoreDeprecations": "5.0",
+    "declaration": false,
+    "sourceMap": true,
+    "outDir": "./dist",
+    "rootDir": "./",
+    "baseUrl": ".",
+    "paths": {
+      "@pages/*": ["framework/pages/*"],
+      "@flows/*": ["framework/flows/*"],
+      "@utils/*": ["framework/utils/*"],
+      "@data/*": ["framework/data/*"],
+      "@models/*": ["framework/models/*"],
+      "@fixtures/*": ["framework/fixtures/*"]
+    }
+  },
+  "include": [
+    "framework/**/*.ts",
+    "scripts/**/*.ts",
+    "*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "allure-report",
+    "allure-results"
+  ]
+}
