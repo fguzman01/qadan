@@ -57,19 +57,73 @@ Seguido por la tabla de test cases:
 - Estilo bullet si hay múltiples, separadas por `<br>`
 - Usar `—` si no hay
 - Describir estado del sistema o datos, NO acciones
-- Ejemplos:
-  - ✅ `Usuario activo en BD`
-  - ✅ `Carrito con 3 productos <br> Sesión iniciada`
-  - ❌ `Hacer login` (esto es un paso, no una precondición)
+- **Regla de consistencia:** Usar la MISMA forma para precondiciones equivalentes
+  dentro del mismo archivo. NO mezclar versiones cortas y largas.
+
+#### Forma canónica para "sistema limpio"
+Cuando el TC requiere que el sistema esté en estado inicial (sin sesión, sin datos previos),
+usar SIEMPRE esta forma completa:
+
+`Sistema en estado inicial (usuario no autenticado)`
+
+NO usar variantes cortas como:
+- ❌ `Sistema en estado inicial`
+- ❌ `Sin sesión`
+- ❌ `Limpio`
+- ❌ `—` (si la precondición existe, declararla)
+
+#### Otros ejemplos correctos
+- ✅ `Usuario activo en BD`
+- ✅ `Carrito con 3 productos <br> Sesión iniciada`
+- ✅ `Producto con SKU PROD-001 disponible en stock`
+- ✅ `—` (cuando genuinamente no hay precondiciones técnicas)
+
+#### Ejemplos incorrectos
+- ❌ `Hacer login` (esto es un paso, no una precondición)
+- ❌ `App funcionando` (vago, todo TC asume eso)
+- ❌ Mezclar `Sistema en estado inicial` y `Sistema en estado inicial (usuario no autenticado)`
+  en el mismo archivo
 
 ### 4. Pasos
 - Lista numerada (1. 2. 3.), cada paso en su propia línea con `<br>`
 - Verbo imperativo al inicio de cada paso
 - Ser específico: "Click en `Iniciar sesión`" en vez de "Hacer click en botón"
 - Referenciar elementos UI con backticks
-- Ejemplos:
-  - ✅ `1. Navegar a \`/login\` <br> 2. Ingresar email <br> 3. Click en \`Iniciar sesión\``
-  - ❌ `Hacer el flujo de login` (muy vago, no numerado)
+- **Regla anti-redundancia:** NO repetir información en pasos consecutivos.
+  Si un paso ya implica una acción, no hace falta describir el contexto en el siguiente.
+
+#### Ejemplos correctos
+- ✅
+```
+1. Navegar a `/login`
+2. Ingresar email
+3. Click en `Iniciar sesión`
+```
+- ✅
+```
+1. Navegar a `/`
+2. Click en `Login` sin llenar el campo `Usuario`
+```
+
+#### Ejemplos incorrectos
+- ❌
+```
+1. Navegar a `/`
+2. Dejar campo `Usuario` vacío        ← redundante
+3. Click en `Login` sin ingresar usuario   ← repite lo del paso 2
+```
+  **Mejor:**
+```
+1. Navegar a `/`
+2. Click en `Login` sin llenar el campo `Usuario`
+```
+
+- ❌ `Hacer el flujo de login` (muy vago, no numerado)
+
+#### Regla de longitud
+- Cada paso debe expresar UNA acción concreta
+- Si necesitás 2 acciones combinadas, separalas en 2 pasos
+- Si un paso es más largo que 15 palabras, probablemente necesita dividirse
 
 ### 5. Resultado Esperado
 - Un criterio por línea con `<br>`
@@ -80,15 +134,31 @@ Seguido por la tabla de test cases:
   - ❌ `Funciona correctamente` (no verificable)
 
 ## Tipos de Test Case y convenciones de nombrado
-Usar estos prefijos en los títulos cuando apliquen (opcional pero recomendado):
 
-| Tipo | Prefijo título | Cuándo usar |
-|------|----------------|-------------|
+Usar estos prefijos en los títulos según el tipo de TC:
+
+| Tipo | Prefijo título (OBLIGATORIO) | Cuándo usar |
+|------|------------------------------|-------------|
 | Happy Path | (sin prefijo) | Flujo principal exitoso |
-| Negative | "Error al..." o "Falla cuando..." | Validaciones, errores esperados |
-| Edge | "Edge:" | Límites, valores extremos |
-| Smoke | "Smoke:" | Validación crítica mínima |
-| Regression | "Regression:" | Bugs previos que no deben reaparecer |
+| Negative | `"Error al..."` | Validaciones, errores esperados, fallos de input |
+| Edge | `"Edge:"` | Límites, valores extremos, casos borde |
+| Smoke | `"Smoke:"` | Validación crítica mínima |
+| Regression | `"Regression:"` | Bugs previos que no deben reaparecer |
+
+**Regla:** El prefijo "Error al..." es OBLIGATORIO para todo TC de tipo Negative.
+NO usar variantes como "Falla al...", "Falla cuando...", "Validación de...", etc.
+
+### Ejemplos correctos
+- ✅ `**TC-001** — Iniciar sesión con credenciales válidas` (Happy)
+- ✅ `**TC-002** — Error al usar credenciales inválidas` (Negative)
+- ✅ `**TC-003** — Error al enviar formulario sin usuario` (Negative)
+- ✅ `**TC-004** — Edge: Password con caracteres especiales` (Edge)
+- ✅ `**TC-005** — Smoke: Botón "Olvidé mi contraseña" navega` (Smoke)
+
+### Ejemplos incorrectos
+- ❌ `**TC-002** — Falla al usar credenciales inválidas` (debe ser "Error al...")
+- ❌ `**TC-003** — Validación de campo email vacío` (debe ser "Error al...")
+- ❌ `**TC-004** — Usuario bloqueado no puede iniciar sesión` (sin prefijo, ambiguo)
 
 ## Heurísticas de cobertura
 Al generar test cases para una feature, asegurar cobertura de:
@@ -98,6 +168,39 @@ Al generar test cases para una feature, asegurar cobertura de:
 - ✅ Valores límite (longitud min/max, cantidad min/max)
 - ✅ Permisos/autorización (si aplica)
 - ✅ Escenarios de red/timeout (si aplica)
+
+## Diseño de TCs negativos: aislamiento de variables
+
+Cuando diseñes un TC negative que prueba una validación específica, **aislá la variable que estás probando**. Los demás campos deben tener valores válidos.
+
+### Por qué importa
+Si un TC tiene múltiples errores simultáneos, no sabés cuál disparó la respuesta del sistema. Aislar variables hace que el TC sea más confiable y debuggeable.
+
+### Ejemplo correcto: aislar "usuario vacío"
+```
+TC: Error al enviar formulario sin usuario
+Datos: Usuario: `""` <br> Password: `secret_sauce`   ← password válido
+```
+→ Sabemos con certeza que el error viene del campo Usuario vacío.
+
+### Ejemplo incorrecto: variables mezcladas
+```
+TC: Error al enviar formulario sin usuario
+Datos: Usuario: `""` <br> Password: `""`             ← ambos vacíos
+```
+→ Si el sistema valida primero Password, este TC nunca probaría la validación de Usuario.
+
+### Excepción válida: TC explícito de "formulario completamente vacío"
+Si la HU explícitamente cubre el escenario de "todos los campos vacíos", crear un TC adicional
+con ese título claro:
+```
+TC: Error al enviar formulario vacío
+Datos: Usuario: `""` <br> Password: `""`
+```
+Este TC NO reemplaza los TCs individuales por cada campo — los complementa.
+
+### Regla de oro
+**Un TC negative = una variable bajo prueba.** Si necesitás probar 2 cosas, son 2 TCs.
 
 ## Ejemplo completo
 

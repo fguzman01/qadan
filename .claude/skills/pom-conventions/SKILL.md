@@ -419,6 +419,43 @@ async loginAsUser(user: User): Promise<void> {
 - ✅ Comentarios inline solo cuando la lógica no sea obvia
 - ❌ NO comentar lo evidente (`// click button`)
 
+## Exploración de la app con Playwright Agent CLI
+
+Cuando un agente necesita diseñar Pages, Flows o validar interacciones contra la app real, debe usar **Playwright Agent CLI** (`npx playwright-cli`).
+
+Esta es la herramienta token-eficiente que qadan adoptó como reemplazo de Playwright MCP. Detalle completo en el skill `playwright-cli-usage`.
+
+### Flujo típico para diseñar un Page Object
+
+1. **Explorar la página relevante:**
+```bash
+npx playwright-cli open <BASE_URL>/login
+npx playwright-cli snapshot
+```
+
+2. **Identificar elementos en el snapshot YAML:**
+   - Refs (`e11`, `e13`) — útiles solo durante exploración
+   - Roles (`button`, `textbox`) — útiles para `getByRole`
+   - Labels (`"Username"`) — útiles para `getByLabel`
+
+3. **Mapear refs a selectores estables** siguiendo el orden de prioridad:
+   - `data-testid` > `getByRole` > `getByLabel` > `getByText` > CSS
+
+4. **Validar interactivamente con el CLI** antes de escribir código:
+```bash
+npx playwright-cli type e11 "test"
+npx playwright-cli snapshot   # verificar respuesta
+```
+
+5. **Cerrar el daemon al terminar:**
+```bash
+npx playwright-cli close
+```
+
+### Regla importante
+
+**Los refs (e11, e13) NUNCA aparecen en el código del Page Object final.** Son herramienta de exploración del agente. El código generado usa selectores semánticos estables.
+
 ## Checklist para nuevos archivos
 
 Antes de dar por finalizado un Page/Flow/Test, verificar:

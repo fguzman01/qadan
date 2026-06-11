@@ -22,12 +22,12 @@ export const LoginDataProvider = {
     return data.validUser;
   },
 
-  /** Retorna el usuario bloqueado para casos negativos. */
+  /** Retorna el usuario bloqueado para casos negativos (CA-2). */
   getLockedUser(): User {
     return data.lockedUser;
   },
 
-  /** Retorna credenciales inválidas para casos negativos. */
+  /** Retorna credenciales inválidas para casos negativos (CA-3). */
   getInvalidUser(): User {
     return data.invalidUser;
   },
@@ -37,7 +37,10 @@ export const LoginDataProvider = {
    * Útil para tests que necesitan variantes específicas sin duplicar fixtures.
    *
    * @example
-   *   const customUser = LoginDataProvider.buildUser({ email: 'otro_user' });
+   *   // TC-004: campo username vacío
+   *   LoginDataProvider.buildUser({ email: '' })
+   *   // TC-005: campo password vacío
+   *   LoginDataProvider.buildUser({ password: '' })
    */
   buildUser(overrides: Partial<User>): User {
     return { ...data.validUser, ...overrides };

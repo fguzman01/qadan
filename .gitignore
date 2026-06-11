@@ -45,3 +45,9 @@ Thumbs.db
 # Temporal
 *.tmp
 .tmp/
+
+# Playwright Agent CLI artefactos
+.playwright-cli/
+
+# Backups locales pre-experimentos
+.backup/

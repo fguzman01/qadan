@@ -33,8 +33,8 @@ export class AuthFlow extends BaseFlow {
   }
 
   /**
-   * Intenta hacer login (sin esperar éxito) — útil para casos negativos.
-   * @param user - Usuario a probar (puede ser inválido)
+   * Intenta hacer login sin esperar éxito — útil para casos negativos (TC-002, TC-003).
+   * @param user - Usuario a probar (puede ser inválido o bloqueado)
    */
   @step('Intento de login con: {0.email}')
   @screenshotOnEnd('login-attempt')
