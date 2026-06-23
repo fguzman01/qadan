@@ -17,7 +17,9 @@ Analizar los TCs proporcionados, explorar la app real, y generar TODOS los archi
 - `framework/data/{feature}/{feature}.data.json` — Datos de prueba raw
 - `framework/data/{feature}/{feature}.provider.ts` — Data Provider tipado
 - `framework/pages/{Feature}Page.ts` — Page Objects
+- `framework/validations/{Feature}Validations.ts` — Validaciones agrupadas
 - `framework/flows/{Feature}Flow.ts` — Flows de negocio
+- `framework/fixtures/{feature}.fixture.ts` — Playwright fixture para inyección de dependencias
 
 ## Lo que NO generás (NO)
 
@@ -118,11 +120,13 @@ Para cada archivo que el agente necesita generar, verificar si ya existe:
 Generar los archivos en este orden estricto (las dependencias fluyen hacia abajo):
 
 ```
-1. Models       → no dependen de nada
-2. Data JSON    → depende de Models (para saber la estructura)
+1. Models        → no dependen de nada
+2. Data JSON     → depende de Models (para saber la estructura)
 3. Data Provider → depende de JSON + Models
-4. Pages        → depende de utils del framework core
-5. Flows        → depende de Pages + Models
+4. Pages         → depende de utils del framework core
+5. Validations   → depende de Pages + expect de Playwright
+6. Flows         → depende de Pages + Models
+7. Fixtures      → depende de Flows + Pages + Validations
 ```
 
 Cada archivo generado DEBE cumplir TODOS los ítems del checklist de `pom-conventions`:
@@ -139,6 +143,10 @@ Cada archivo generado DEBE cumplir TODOS los ítems del checklist de `pom-conven
 - [ ] No expone locators fuera de la clase
 - [ ] Data: tiene `*.provider.ts` además del `*.data.json`
 - [ ] Los providers centralizan el tipado (cast `as Tipo` solo aquí)
+- [ ] Validations extienden `BaseValidation`
+- [ ] Métodos de Validations empiezan con `assert`
+- [ ] Validations tienen `@step` en métodos públicos
+- [ ] Validations NO ejecutan acciones (solo leen estado con Pages)
 
 ### Paso 6: Validación automática
 
@@ -167,7 +175,9 @@ Después de generar, mostrar:
    CREADO: framework/data/login/login.provider.ts
    CREADO: framework/pages/LoginPage.ts
    CREADO: framework/pages/InventoryPage.ts
+   CREADO: framework/validations/LoginValidations.ts
    CREADO: framework/flows/AuthFlow.ts
+   CREADO: framework/fixtures/login.fixture.ts
 ```
 
 2. **Modo de exploración usado:** CLI real / Modo lógico (fallback)
@@ -237,6 +247,52 @@ export class AuthFlow extends BaseFlow {
     await this.loginPage.clickLogin();
   }
 }
+```
+
+### Validations
+```typescript
+export class LoginValidations extends BaseValidation {
+  private loginPage: LoginPage;
+
+  constructor(page: Page) {
+    super(page);
+    this.loginPage = new LoginPage(page);
+  }
+
+  @step('Validar error de login: {0}')
+  async assertLoginError(expectedText: string): Promise<void> {
+    expect(await this.loginPage.hasError()).toBe(true);
+    const errorMsg = await this.loginPage.getErrorMessage();
+    expect(errorMsg).toContain(expectedText);
+    await expect(this.page).not.toHaveURL(/.*inventory/);
+  }
+}
+```
+
+### Fixtures
+```typescript
+import { test as base } from '@playwright/test';
+import { AuthFlow } from '../flows/AuthFlow';
+import { LoginPage } from '../pages/LoginPage';
+import { LoginValidations } from '../validations/LoginValidations';
+
+export const test = base.extend<{
+  authFlow: AuthFlow;
+  loginPage: LoginPage;
+  loginValidations: LoginValidations;
+}>({
+  authFlow: async ({ page }, use) => {
+    await use(new AuthFlow(page));
+  },
+  loginPage: async ({ page }, use) => {
+    await use(new LoginPage(page));
+  },
+  loginValidations: async ({ page }, use) => {
+    await use(new LoginValidations(page));
+  },
+});
+
+export { expect } from '@playwright/test';
 ```
 
 ### Data Provider

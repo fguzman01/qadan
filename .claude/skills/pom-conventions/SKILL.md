@@ -18,12 +18,15 @@ description: Define las convenciones obligatorias del Page Object Model (POM) en
 framework/
 ├── pages/              # Page Objects (clases por página)
 ├── flows/              # Flows (clases que orquestan múltiples pages)
+├── validations/        # Validations (clases que agrupan assertions)
 ├── tests/              # Specs Playwright (un archivo por feature)
 │   └── {feature}/
 │       └── {feature}.spec.ts
 ├── utils/              # Helpers reforzados (safeClick, etc.)
+│   ├── AutomationBase.ts
 │   ├── BasePage.ts
 │   ├── BaseFlow.ts
+│   ├── BaseValidation.ts
 │   ├── decorators.ts   # @step, @screenshotOnEnd
 │   ├── interactions.ts # safeClick, safeFill, etc.
 │   ├── screenshots.ts  # takeScreenshot util
@@ -34,7 +37,8 @@ framework/
 │       └── {feature}.provider.ts
 ├── models/             # Interfaces TypeScript (User, Product, etc.)
 │   └── {entity}.model.ts
-├── fixtures/           # Playwright fixtures custom
+├── fixtures/           # Playwright fixtures por feature
+│   └── {feature}.fixture.ts
 └── playwright.config.ts
 ```
 
@@ -44,9 +48,12 @@ framework/
 |----------|-----------|---------|
 | Clase Page | PascalCase + sufijo `Page` | `LoginPage` |
 | Clase Flow | PascalCase + sufijo `Flow` | `AuthFlow` |
+| Clase Validation | PascalCase + sufijo `Validations` | `LoginValidations` |
 | Clase Model | PascalCase, sin sufijo | `User`, `Product` |
 | Archivo Page | PascalCase = nombre clase | `LoginPage.ts` |
 | Archivo Flow | PascalCase = nombre clase | `AuthFlow.ts` |
+| Archivo Validation | PascalCase = nombre clase | `LoginValidations.ts` |
+| Archivo Fixture | kebab-case + `.fixture.ts` | `login.fixture.ts` |
 | Archivo Model | kebab-case + `.model.ts` | `user.model.ts` |
 | Archivo Data | kebab-case + `.data.json` | `login.data.json` |
 | Archivo Spec | kebab-case + `.spec.ts` | `login.spec.ts` |
@@ -179,6 +186,123 @@ export class AuthFlow extends BaseFlow {
 - ✅ Los Flows NO conocen locators (eso es responsabilidad de Pages)
 - ❌ NO duplicar lógica de Page dentro de Flow
 
+## Clase Validation (template obligatorio)
+
+Las Validations agrupan assertions por feature, separando la responsabilidad de "verificar" de la de "actuar" (Flows).
+
+```typescript
+import { Page, expect } from '@playwright/test';
+import { BaseValidation } from '../utils/BaseValidation';
+import { LoginPage } from '../pages/LoginPage';
+import { InventoryPage } from '../pages/InventoryPage';
+import { step } from '../utils/decorators';
+
+export class LoginValidations extends BaseValidation {
+  private loginPage: LoginPage;
+  private inventoryPage: InventoryPage;
+
+  constructor(page: Page) {
+    super(page);
+    this.loginPage = new LoginPage(page);
+    this.inventoryPage = new InventoryPage(page);
+  }
+
+  @step('Validar login exitoso')
+  async assertLoginSuccess(): Promise<void> {
+    await expect(this.page).toHaveURL(/.*inventory\.html/);
+    expect(await this.inventoryPage.isLoaded()).toBe(true);
+    expect(await this.inventoryPage.getItemsCount()).toBeGreaterThan(0);
+  }
+
+  @step('Validar error de login: {0}')
+  async assertLoginError(expectedText: string): Promise<void> {
+    expect(await this.loginPage.hasError()).toBe(true);
+    const errorMsg = await this.loginPage.getErrorMessage();
+    expect(errorMsg).toContain(expectedText);
+    await expect(this.page).not.toHaveURL(/.*inventory/);
+  }
+}
+```
+
+### Reglas para Validations
+- ✅ Extiende `BaseValidation`
+- ✅ Instancia Pages necesarias en el constructor (para leer estado)
+- ✅ Métodos públicos con `@step`
+- ✅ Todos los métodos empiezan con prefijo `assert` (assertLoginSuccess, assertLoginError)
+- ✅ Usa `expect()` de Playwright para assertions
+- ❌ NO ejecuta acciones (click, fill, navigate) — eso es responsabilidad de Flows/Pages
+- ❌ NO usa `@screenshotOnEnd` (las validaciones son read-only, no cambian estado visual)
+- ❌ NO se importa directamente en Flows — Validations y Flows son capas paralelas
+
+### Relación entre capas
+
+```
+Pages       → Interacciones atómicas con la UI (click, fill, getText)
+Flows       → Orquestación de acciones (login completo, checkout)
+Validations → Orquestación de assertions (verificar login exitoso, verificar error)
+Specs       → Combinan Flows + Validations (la "receta" del test case)
+```
+
+Un Flow NUNCA importa una Validation. Una Validation NUNCA ejecuta una acción. Un Spec SIEMPRE combina ambos.
+
+## Fixtures (patrón obligatorio)
+
+Cada feature debe tener un archivo de fixture que extiende `test` de Playwright e inyecta las instancias de Flows, Pages y Validations.
+
+### Ubicación y nombrado
+- Ruta: `framework/fixtures/{feature}.fixture.ts`
+- Nombre: kebab-case + `.fixture.ts` (ej: `login.fixture.ts`, `cart.fixture.ts`)
+
+### Template
+
+```typescript
+import { test as base } from '@playwright/test';
+import { AuthFlow } from '../flows/AuthFlow';
+import { LoginPage } from '../pages/LoginPage';
+import { LoginValidations } from '../validations/LoginValidations';
+
+/**
+ * Fixture de {Feature} para qadan.
+ *
+ * Extiende `test` de Playwright para inyectar Flows, Pages y Validations
+ * del módulo de {Feature} automáticamente.
+ */
+export const test = base.extend<{
+  authFlow: AuthFlow;
+  loginPage: LoginPage;
+  loginValidations: LoginValidations;
+}>({
+  authFlow: async ({ page }, use) => {
+    await use(new AuthFlow(page));
+  },
+  loginPage: async ({ page }, use) => {
+    await use(new LoginPage(page));
+  },
+  loginValidations: async ({ page }, use) => {
+    await use(new LoginValidations(page));
+  },
+});
+
+export { expect } from '@playwright/test';
+```
+
+### Reglas para Fixtures
+- ✅ Un archivo fixture por feature
+- ✅ Exportar `test` (el extendido) y re-exportar `expect`
+- ✅ Nombrar los fixtures con camelCase descriptivo: `authFlow`, `loginPage`, `loginValidations`
+- ✅ JSDoc explicando el propósito del fixture
+- ✅ Cada fixture inyecta instancia fresca por test (sin estado compartido)
+- ❌ NO incluir lógica de setup compleja — solo instanciación
+- ❌ NO compartir estado entre tests vía fixtures
+
+### Convenciones de nombrado para fixtures inyectados
+
+| Tipo | Convención | Ejemplo |
+|------|-----------|---------|
+| Flow | camelCase sin sufijo `Flow` si no hay ambigüedad | `authFlow`, `cartFlow` |
+| Page | camelCase con sufijo `Page` | `loginPage`, `cartPage` |
+| Validation | camelCase con sufijo `Validations` | `loginValidations`, `cartValidations` |
+
 ## Clase Model (template)
 
 ```typescript
@@ -264,49 +388,58 @@ const customUser = LoginDataProvider.buildUser({ email: 'otro_user' });
 
 ## Spec / Test (template obligatorio)
 
+Los specs importan `test` desde el fixture de la feature (NO desde `@playwright/test` directo).
+Esto inyecta automáticamente Flows, Pages y Validations sin instanciación manual.
+
 ```typescript
-import { test, expect } from '@playwright/test';
-import { AuthFlow } from '../../flows/AuthFlow';
-import { LoginPage } from '../../pages/LoginPage';
+import { test } from '../../fixtures/login.fixture';
 import { LoginDataProvider } from '../../data/login/login.provider';
 import { log } from '../../utils/logger';
 
-test.describe('Login - JIRA-123', () => {  // ← JIRA ID obligatorio en el describe
+test.describe('Login - SAUCE-101 (Sauce Demo)', () => {
 
-  test('TC-001 - Iniciar sesión con credenciales válidas', async ({ page }) => {
+  test('TC-001 - Iniciar sesión con credenciales válidas @smoke', async ({
+    authFlow,
+    loginValidations,
+  }) => {
     log('info', 'Inicio TC-001');
-    const authFlow = new AuthFlow(page);
-    const validUser = LoginDataProvider.getValidUser();  // ← Provider, nunca JSON directo
+    const validUser = LoginDataProvider.getValidUser();
 
     await authFlow.loginAsUser(validUser);
+    await loginValidations.assertLoginSuccess();
 
-    await expect(page).toHaveURL(/.*dashboard/);
     log('info', 'Fin TC-001 - OK');
   });
 
-  test('TC-002 - Falla al usar credenciales inválidas', async ({ page }) => {
+  test('TC-002 - Error al usar usuario bloqueado', async ({
+    authFlow,
+    loginValidations,
+  }) => {
     log('info', 'Inicio TC-002');
-    const loginPage = new LoginPage(page);
-    const invalidUser = LoginDataProvider.getInvalidUser();
+    const lockedUser = LoginDataProvider.getLockedUser();
 
-    await loginPage.goto();
-    await loginPage.fillEmail(invalidUser.email);
-    await loginPage.fillPassword(invalidUser.password);
-    await loginPage.clickSubmit();
+    await authFlow.attemptLogin(lockedUser);
+    await loginValidations.assertLoginError('locked out');
 
-    const errorMsg = await loginPage.getErrorMessage();
-    expect(errorMsg).toContain('Email inválido');
     log('info', 'Fin TC-002 - OK');
   });
 });
 ```
 
 ### Reglas para Specs
-- ✅ `test.describe` por feature, con JIRA ID en el nombre
-- ✅ Nombre del test inicia con el ID del TC (`TC-XXX`) y verbo de acción
+- ✅ Importar `test` desde el fixture de la feature (`../../fixtures/login.fixture`)
+- ✅ `test.describe` por feature, con HU ID en el nombre
+- ✅ Nombre del test inicia con el ID del TC (`TC-XXX`)
+- ✅ `@smoke` tag en el primer happy path
 - ✅ Logs al inicio y fin de cada test
-- ✅ Datos consumidos siempre vía `{Feature}DataProvider` — NUNCA importar el JSON directamente
-- ❌ NO incluir lógica de UI directa — usar Pages/Flows
+- ✅ Datos vía Provider (nunca import JSON directo)
+- ✅ Acciones vía Flows (o Pages para flujos parciales, documentando por qué)
+- ✅ Validaciones vía Validations (`assert*`)
+- ✅ Destructurar solo los fixtures que el test necesita
+- ❌ NO instanciar Pages/Flows/Validations manualmente con `new`
+- ❌ NO importar `test` desde `@playwright/test` — siempre desde el fixture
+- ❌ NO usar `expect()` directo en el spec — usar Validations
+- ❌ NO usar `page.locator/getByTestId` directo
 
 ## Utils de Interacción (reforzados)
 
@@ -473,3 +606,11 @@ Antes de dar por finalizado un Page/Flow/Test, verificar:
 - [ ] No expone locators a Flows o Tests
 - [ ] Si es una feature con datos: tiene archivo `*.provider.ts` además del `*.data.json`
 - [ ] Los specs consumen datos vía `{Feature}DataProvider`, NO importan el JSON directamente
+- [ ] Si es una feature: tiene archivo de Validations (`{Feature}Validations.ts`)
+- [ ] Los specs usan Validations para assertions, NO assertions directas
+- [ ] Validations extienden `BaseValidation`
+- [ ] Métodos de Validations empiezan con `assert`
+- [ ] Validations NO ejecutan acciones (solo leen estado)
+- [ ] Si es una feature nueva: tiene archivo de fixture (`{feature}.fixture.ts`)
+- [ ] Los specs importan `test` desde el fixture, NO desde `@playwright/test`
+- [ ] Los specs NO instancian Pages/Flows/Validations con `new` — usan destructuring del fixture
