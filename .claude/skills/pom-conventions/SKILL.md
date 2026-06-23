@@ -208,6 +208,7 @@ export class LoginValidations extends BaseValidation {
   }
 
   @step('Validar login exitoso')
+  @screenshotOnEnd('validacion-login-exitoso')
   async assertLoginSuccess(): Promise<void> {
     await expect(this.page).toHaveURL(/.*inventory\.html/);
     expect(await this.inventoryPage.isLoaded()).toBe(true);
@@ -215,6 +216,7 @@ export class LoginValidations extends BaseValidation {
   }
 
   @step('Validar error de login: {0}')
+  @screenshotOnEnd('validacion-login-error')
   async assertLoginError(expectedText: string): Promise<void> {
     expect(await this.loginPage.hasError()).toBe(true);
     const errorMsg = await this.loginPage.getErrorMessage();
@@ -230,8 +232,9 @@ export class LoginValidations extends BaseValidation {
 - ✅ Métodos públicos con `@step`
 - ✅ Todos los métodos empiezan con prefijo `assert` (assertLoginSuccess, assertLoginError)
 - ✅ Usa `expect()` de Playwright para assertions
+- ✅ Métodos de validación principales llevan `@screenshotOnEnd` para evidencia visual
+- ⚠️ Métodos helper simples (`assertHasError`, `assertNoError`) NO llevan `@screenshotOnEnd`
 - ❌ NO ejecuta acciones (click, fill, navigate) — eso es responsabilidad de Flows/Pages
-- ❌ NO usa `@screenshotOnEnd` (las validaciones son read-only, no cambian estado visual)
 - ❌ NO se importa directamente en Flows — Validations y Flows son capas paralelas
 
 ### Relación entre capas

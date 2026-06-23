@@ -146,7 +146,8 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './framework/tests',
-  fullyParallel: true,
+  fullyParallel: false,  // Tests corren en serie por defecto (más predecible para QA)
+                         // Cambiar a true si el proyecto requiere máxima velocidad en CI
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
@@ -158,7 +159,8 @@ export default defineConfig({
     ['list'],
     ['html', { outputFolder: 'reports/playwright-html', open: 'never' }],
     ['allure-playwright', {
-      detail: true,
+      detail: false,       // Oculta sub-steps internos de Playwright
+                            // Muestra solo los @step definidos por el equipo (más legible)
       outputFolder: 'allure-results',
       suiteTitle: false,
       environmentInfo: {

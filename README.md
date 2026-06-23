@@ -44,6 +44,15 @@ npm run test:smoke
 
 # Tests + generar y abrir reporte Allure
 npm run test:and:report
+
+# Modo lento (1s entre acciones, con browser visible)
+npm run test:slow
+
+# Modo super lento (2s, ideal para demos)
+npm run test:slow:2x
+
+# Velocidad custom
+SLOW_MO=3000 npm test -- --headed
 ```
 
 ## Estructura

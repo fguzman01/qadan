@@ -2,7 +2,7 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './framework/tests',
-  fullyParallel: true,
+  fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
@@ -14,7 +14,7 @@ export default defineConfig({
     ['list'],
     ['html', { outputFolder: 'reports/playwright-html', open: 'never' }],
     ['allure-playwright', {
-      detail: true,
+      detail: false,
       outputFolder: 'allure-results',
       suiteTitle: false,
       environmentInfo: {
@@ -28,6 +28,9 @@ export default defineConfig({
     // Sauce Demo usa `data-test` en lugar del estándar `data-testid`.
     // Cambiar este valor según el atributo que use la app target.
     testIdAttribute: 'data-test',
+    launchOptions: {
+      slowMo: parseInt(process.env.SLOW_MO || '0'),
+    },
     actionTimeout: 15_000,
     navigationTimeout: 30_000,
     screenshot: 'only-on-failure',

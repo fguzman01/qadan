@@ -2,7 +2,7 @@ import { Page, expect } from '@playwright/test';
 import { BaseValidation } from '../utils/BaseValidation';
 import { LoginPage } from '../pages/LoginPage';
 import { InventoryPage } from '../pages/InventoryPage';
-import { step } from '../utils/decorators';
+import { step, screenshotOnEnd } from '../utils/decorators';
 
 /**
  * Validaciones del módulo de Login.
@@ -25,6 +25,7 @@ export class LoginValidations extends BaseValidation {
    * productos visibles.
    */
   @step('Validar login exitoso')
+  @screenshotOnEnd('validacion-login-exitoso')
   async assertLoginSuccess(): Promise<void> {
     await expect(this.page).toHaveURL(/.*inventory\.html/);
     expect(await this.inventoryPage.isLoaded()).toBe(true);
@@ -38,6 +39,7 @@ export class LoginValidations extends BaseValidation {
    * @param expectedText - Texto que debe contener el mensaje de error
    */
   @step('Validar error de login: {0}')
+  @screenshotOnEnd('validacion-login-error')
   async assertLoginError(expectedText: string): Promise<void> {
     expect(await this.loginPage.hasError()).toBe(true);
     const errorMsg = await this.loginPage.getErrorMessage();
