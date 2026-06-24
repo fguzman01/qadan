@@ -209,6 +209,34 @@ constructor(page: Page) {
 }
 ```
 
+### isVisible vs isVisibleNow
+
+`AutomationBase` expone dos métodos para verificar visibilidad con semánticas distintas:
+
+| Método | Cuándo usar | Timeout |
+|--------|-------------|---------|
+| `isVisible(locator)` | Espero que el elemento APAREZCA | `this.timeout` (10s) |
+| `isVisibleNow(locator)` | Verifico si está ahora (puede no estar) | 1_500ms |
+
+**Regla:** Si el elemento puede legítimamente NO estar presente, usar `isVisibleNow`.
+
+```typescript
+// ✅ Correcto — badge puede no existir cuando el carrito está vacío
+async isCartBadgeVisible(): Promise<boolean> {
+  return await this.isVisibleNow(this.cartBadge());
+}
+
+// ✅ Correcto — esperamos que el inventario aparezca
+async waitForLoaded(): Promise<void> {
+  await this.waitForElement(this.inventoryContainer()); // usa timeout largo
+}
+
+// ❌ Incorrecto — usa timeout largo para verificar ausencia
+async isCartBadgeVisible(): Promise<boolean> {
+  return await this.isVisible(this.cartBadge()); // espera 10s innecesariamente
+}
+```
+
 ## Clase Flow (template obligatorio)
 
 Los Flows orquestan múltiples Pages para representar flujos de negocio completos.

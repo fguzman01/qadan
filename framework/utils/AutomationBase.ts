@@ -111,6 +111,30 @@ export abstract class AutomationBase {
     return isVisible(locator, timeout ?? this.timeout);
   }
 
+  /**
+   * Verifica si un elemento está visible AHORA sin esperar.
+   * Usar cuando el elemento PUEDE no estar presente (checks de ausencia).
+   * Usa un timeout corto (default 1_500ms) para no bloquear el flujo.
+   *
+   * Diferencia con isVisible:
+   *   isVisible    → "Espero que aparezca"  → timeout largo (this.timeout)
+   *   isVisibleNow → "¿Está ahora mismo?"   → timeout corto (1_500ms)
+   *
+   * @example
+   *   // ✅ Correcto para verificar badge ausente:
+   *   async isCartBadgeVisible(): Promise<boolean> {
+   *     return await this.isVisibleNow(this.cartBadge());
+   *   }
+   *
+   *   // ✅ Correcto para esperar que aparezca un elemento:
+   *   async waitForLoaded(): Promise<void> {
+   *     await this.waitForElement(this.container()); // usa isVisible internamente
+   *   }
+   */
+  protected async isVisibleNow(locator: Locator, timeout: number = 1_500): Promise<boolean> {
+    return isVisible(locator, timeout);
+  }
+
   /** Obtiene atributo con validación. */
   protected async getAttribute(locator: Locator, attr: string, timeout?: number): Promise<string> {
     return getAttribute(locator, attr, timeout ?? this.timeout);

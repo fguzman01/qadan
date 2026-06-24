@@ -34,7 +34,7 @@ export class CartPage extends BasePage {
   /** Verifica si un producto está visible en la lista del carrito. */
   @step('Verificar si {0} está en el carrito')
   async isProductInCart(productName: string): Promise<boolean> {
-    return await this.isVisible(this.itemName(productName));
+    return await this.isVisibleNow(this.itemName(productName));
   }
 
   /** Obtiene el precio mostrado para un producto en el carrito. */

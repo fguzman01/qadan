@@ -96,13 +96,13 @@ export class InventoryPage extends BasePage {
   /** Verifica si un producto está marcado como agregado al carrito (el botón muestra "Remove"). */
   @step('Verificar si {0} está en el carrito')
   async isProductInCart(productName: string): Promise<boolean> {
-    return await this.isVisible(this.removeButton(productName));
+    return await this.isVisibleNow(this.removeButton(productName));
   }
 
   /** Verifica si el badge del carrito está visible. */
   @step('Verificar visibilidad del badge del carrito')
   async isCartBadgeVisible(): Promise<boolean> {
-    return await this.isVisible(this.cartBadge());
+    return await this.isVisibleNow(this.cartBadge());
   }
 
   /** Obtiene la cantidad mostrada en el badge del carrito (0 si no está visible). */
