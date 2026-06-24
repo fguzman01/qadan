@@ -54,6 +54,6 @@ export class LoginPage extends BasePage {
   /** Verifica si hay un mensaje de error visible. */
   @step('Verificar visibilidad de mensaje de error')
   async hasError(): Promise<boolean> {
-    return await this.isVisible(this.errorMessage(), 3_000);
+    return await this.isVisible(this.errorMessage());
   }
 }

@@ -14,10 +14,11 @@ const DEFAULT_TIMEOUT = 15_000;
  * Nota: NO verifica explícitamente el estado enabled del elemento.
  */
 export async function safeClick(locator: Locator, timeout: number = DEFAULT_TIMEOUT): Promise<void> {
-  log('debug', `safeClick: ${locator}`);
+  log('debug', `safeClick → ${locator}`);
   await locator.waitFor({ state: 'visible', timeout });
   await locator.scrollIntoViewIfNeeded();
   await locator.click({ timeout });
+  log('debug', `safeClick ✓`);
 }
 
 /**
@@ -28,7 +29,8 @@ export async function safeFill(
   value: string,
   timeout: number = DEFAULT_TIMEOUT,
 ): Promise<void> {
-  log('debug', `safeFill: "${value}"`);
+  const displayValue = value.length > 30 ? `${value.slice(0, 30)}...` : value;
+  log('debug', `safeFill → "${displayValue}"`);
   await locator.waitFor({ state: 'visible', timeout });
   await locator.clear();
   await locator.fill(value);
@@ -36,15 +38,17 @@ export async function safeFill(
   if (actual !== value) {
     throw new Error(`safeFill falló: se esperaba "${value}", se obtuvo "${actual}"`);
   }
+  log('debug', `safeFill ✓`);
 }
 
 /**
  * Navegación reforzada: goto + waitForLoadState('networkidle').
  */
 export async function safeNavigate(page: Page, path: string): Promise<void> {
-  log('info', `safeNavigate: ${path}`);
+  log('info', `safeNavigate → ${path}`);
   await page.goto(path);
   await page.waitForLoadState('networkidle');
+  log('info', `safeNavigate ✓ → ${page.url()}`);
 }
 
 /**
@@ -54,21 +58,23 @@ export async function waitForElement(
   locator: Locator,
   timeout: number = DEFAULT_TIMEOUT,
 ): Promise<void> {
-  log('debug', `waitForElement: ${locator}`);
+  log('debug', `waitForElement → ${locator}`);
   await locator.waitFor({ state: 'visible', timeout });
+  log('debug', `waitForElement ✓`);
 }
 
 /**
  * Obtiene texto: espera visible + textContent + trim + valida no vacío.
  */
 export async function getText(locator: Locator, timeout: number = DEFAULT_TIMEOUT): Promise<string> {
-  log('debug', `getText: ${locator}`);
+  log('debug', `getText → ${locator}`);
   await locator.waitFor({ state: 'visible', timeout });
   const raw = await locator.textContent();
   const text = (raw ?? '').trim();
   if (text === '') {
     throw new Error(`getText falló: el elemento está vacío (${locator})`);
   }
+  log('debug', `getText ✓ → "${text.length > 30 ? text.slice(0, 30) + '...' : text}"`);
   return text;
 }
 
@@ -80,13 +86,14 @@ export async function safeSelect(
   value: string,
   timeout: number = DEFAULT_TIMEOUT,
 ): Promise<void> {
-  log('debug', `safeSelect: "${value}"`);
+  log('debug', `safeSelect → "${value}"`);
   await locator.waitFor({ state: 'visible', timeout });
   await locator.selectOption(value);
   const actual = await locator.inputValue();
   if (actual !== value) {
     throw new Error(`safeSelect falló: se esperaba "${value}", se obtuvo "${actual}"`);
   }
+  log('debug', `safeSelect ✓`);
 }
 
 /**

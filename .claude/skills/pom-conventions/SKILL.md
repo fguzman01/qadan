@@ -87,6 +87,42 @@ private loginLogo = (): Locator => this.page.locator('.login_logo');
 
 Todo Page Object DEBE extender `BasePage` y seguir esta estructura:
 
+### Orden estándar de secciones en un Page Object
+
+Todo Page Object DEBE seguir este orden de secciones (usar comentarios de separación):
+
+```typescript
+export class FeaturePage extends BasePage {
+
+  // ═══ 1. CONSTANTES ═══
+  private readonly path = '/ruta';
+
+  // ═══ 2. LOCATORS ESTÁTICOS (sin parámetros) ═══
+  private elemento = (): Locator => this.page.getByTestId('elemento');
+
+  // ═══ 3. LOCATORS DINÁMICOS (con parámetros) ═══
+  private elementoDinamico = (id: string): Locator =>
+    this.page.getByTestId(`elemento-${id}`);
+
+  // ═══ 4. CONSTRUCTOR ═══
+  constructor(page: Page) {
+    super(page);
+  }
+
+  // ═══ 5. HELPERS PRIVADOS ═══
+  private toSlug(name: string): string { ... }
+
+  // ═══ 6. NAVEGACIÓN ═══
+  @step('...') async goto(): Promise<void> { ... }
+
+  // ═══ 7. ACCIONES ═══
+  @step('...') async clickAlgo(): Promise<void> { ... }
+
+  // ═══ 8. QUERIES (lectura de estado, sin efectos) ═══
+  @step('...') async isAlgoVisible(): Promise<boolean> { ... }
+}
+```
+
 ```typescript
 import { Page, Locator } from '@playwright/test';
 import { BasePage } from '../utils/BasePage';
@@ -143,6 +179,35 @@ export class LoginPage extends BasePage {
 - ✅ Locators como métodos privados que retornan `Locator` (lazy)
 - ✅ Todo método público con `@step` para Allure
 - ✅ Tipos de retorno explícitos (`Promise<void>`, `Promise<string>`, etc.)
+
+### Timeout configurable
+
+`AutomationBase` expone `this.timeout` (default: 10_000ms). Todos los métodos `safe*`
+e `isVisible` lo usan automáticamente si no se pasa un timeout explícito.
+
+```typescript
+// ✅ Correcto — usa this.timeout automáticamente
+async isLoaded(): Promise<boolean> {
+  return await this.isVisible(this.container());
+}
+
+// ⚠️ Solo si necesitás un timeout diferente al default
+async isVisibleQuickCheck(): Promise<boolean> {
+  return await this.isVisible(this.element(), 2_000);
+}
+
+// ❌ Incorrecto — hardcodear timeouts arbitrarios
+async isLoaded(): Promise<boolean> {
+  return await this.isVisible(this.container(), 5_000);
+}
+```
+
+Si una Page completa necesita timeouts más cortos (ej: componentes rápidos):
+```typescript
+constructor(page: Page) {
+  super(page, 5_000);  // override del timeout para toda la clase
+}
+```
 
 ## Clase Flow (template obligatorio)
 
