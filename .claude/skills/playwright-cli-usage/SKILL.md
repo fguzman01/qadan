@@ -53,39 +53,81 @@ npx playwright-cli snapshot
 
 ### Interactuar con elementos
 ```bash
-# Escribir en un textbox usando su ref
-npx playwright-cli type e11 "standard_user"
+# Escribir en un input usando su ref (CORRECTO: fill, NO type)
+npx playwright-cli fill e11 "standard_user"
 
-# Click en un botón
+# Click en un elemento
 npx playwright-cli click e15
 
-# Presionar Enter
+# Presionar una tecla
 npx playwright-cli press Enter
 
-# Marcar checkbox por ref
+# Marcar checkbox
 npx playwright-cli check e21
+
+# Desmarcar checkbox
+npx playwright-cli uncheck e21
+
+# Seleccionar opción en dropdown
+npx playwright-cli select e46 "Name (A to Z)"
+
+# Hover sobre elemento
+npx playwright-cli hover e35
 ```
+
+⚠️ **Nota importante:** El comando `type` existe pero tipea sin target (en el elemento actualmente enfocado). Siempre usar `fill <ref> <texto>` para inputs — es más explícito y confiable.
 
 ### Navegación
 ```bash
-npx playwright-cli navigate https://www.saucedemo.com/inventory.html
-npx playwright-cli back
-npx playwright-cli forward
+# Navegar a una URL (CORRECTO: goto, NO navigate)
+npx playwright-cli goto https://www.saucedemo.com/inventory.html
+
+# Volver atrás (CORRECTO: go-back, NO back)
+npx playwright-cli go-back
+
+# Ir adelante (CORRECTO: go-forward, NO forward)
+npx playwright-cli go-forward
+
+# Recargar la página
 npx playwright-cli reload
 ```
 
+⚠️ Comandos incorrectos que NO existen:
+- `navigate` → usar `goto`
+- `back` → usar `go-back`
+- `forward` → usar `go-forward`
+
 ### Screenshots
 ```bash
-# Pantalla completa
+# Screenshot de la página completa
 npx playwright-cli screenshot
 
-# De un elemento específico
-npx playwright-cli screenshot --ref e15
+# Screenshot de un elemento específico (target como argumento posicional, NO --ref)
+npx playwright-cli screenshot e15
+
+# Guardar con nombre específico
+npx playwright-cli screenshot --output mi-screenshot.png
 ```
+
+⚠️ Sintaxis incorrecta que NO funciona:
+- `screenshot --ref e15` → usar `screenshot e15` (argumento posicional)
 
 ### Cerrar sesión
 ```bash
 npx playwright-cli close
+```
+
+### Opciones globales útiles
+```bash
+# --raw: output solo el valor, sin metadata adicional (ideal para eval)
+npx playwright-cli eval "document.title" --raw
+# → "Swag Labs"
+
+# Sin --raw (incluye metadata del resultado):
+npx playwright-cli eval "document.title"
+# → ### Result
+# → "Swag Labs"
+# → ### Ran Playwright code...
 ```
 
 ## Workflow típico de exploración (para POM Architect)
@@ -96,23 +138,32 @@ Este es el patrón estándar que los agentes de qadan siguen para descubrir la U
 # 1. Abrir la app
 npx playwright-cli open https://www.saucedemo.com
 
-# 2. Snapshot inicial (descubrir elementos)
+# 2. Snapshot inicial (descubrir elementos y refs)
 npx playwright-cli snapshot
-# → leer el .yml generado para identificar refs
 
-# 3. Interactuar para llegar al estado deseado (ej: post-login)
-npx playwright-cli type e11 "standard_user"
-npx playwright-cli type e13 "secret_sauce"
+# 3. Login o navegar al estado deseado usando fill (NO type)
+npx playwright-cli fill e11 "standard_user"
+npx playwright-cli fill e13 "secret_sauce"
 npx playwright-cli click e15
 
 # 4. Nuevo snapshot del estado post-acción
 npx playwright-cli snapshot
 
-# 5. Repetir hasta cubrir todos los estados relevantes
+# 5. Inspeccionar atributos data-test de elementos clave
+npx playwright-cli eval "document.querySelector('.inventory_item button').getAttribute('data-test')" --raw
 
-# 6. Cerrar
+# 6. Listar atributos de múltiples elementos del mismo tipo
+npx playwright-cli eval "Array.from(document.querySelectorAll('.inventory_item')).map(el => el.querySelector('button').getAttribute('data-test'))" --raw
+
+# 7. Navegar a otras páginas si es necesario
+npx playwright-cli goto https://www.saucedemo.com/cart.html
+npx playwright-cli snapshot
+
+# 8. Cerrar al terminar
 npx playwright-cli close
 ```
+
+**Regla de oro:** Después de cada acción significativa (`fill`, `click`, `goto`), tomar un nuevo `snapshot` para verificar el estado actual de la página.
 
 ## Cómo mapear refs a selectores Playwright
 
@@ -131,18 +182,36 @@ Los refs (`e11`, `e13`) son útiles **durante exploración**, pero el código de
 4. `getByText` (para texto visible)
 5. CSS/XPath (último recurso, requiere comentario justificativo)
 
-## Cómo saber el atributo testid real
+## Cómo inspeccionar atributos y descubrir selectores reales
 
-El snapshot YAML del CLI muestra refs y roles, pero NO los atributos HTML específicos. Para descubrir el `data-test` real, el agente debe:
+El snapshot YAML muestra refs y roles pero no los atributos HTML específicos.
+Para descubrir `data-test`, `data-testid` u otros atributos, usar `eval`:
 
-1. Hacer snapshot básico para ver la estructura
-2. Si necesita confirmar el atributo de un elemento específico, usar:
 ```bash
-npx playwright-cli eval "document.querySelector('input[type=text]').getAttribute('data-test')"
+# Obtener data-test de un elemento específico por ref
+npx playwright-cli eval "document.querySelector('[data-test]').getAttribute('data-test')" --raw
+
+# Obtener data-test de un elemento por selector CSS
+npx playwright-cli eval "document.querySelector('.inventory_item button').getAttribute('data-test')" --raw
+
+# Listar data-test de TODOS los elementos de un tipo
+npx playwright-cli eval "Array.from(document.querySelectorAll('.inventory_item')).map(el => el.querySelector('button').getAttribute('data-test'))" --raw
+
+# Verificar si un elemento tiene data-test
+npx playwright-cli eval "document.querySelector('.app_logo') ? document.querySelector('.app_logo').getAttribute('data-test') : 'sin data-test'" --raw
 ```
-3. O hacer una inspección dirigida con el ref:
+
+### Patrón recomendado para descubrir selectores
+
 ```bash
-npx playwright-cli inspect e11
+# 1. Snapshot para identificar refs
+npx playwright-cli snapshot
+
+# 2. Eval para confirmar atributos del elemento
+npx playwright-cli eval "document.querySelector('.mi-selector').getAttribute('data-test')" --raw
+
+# 3. Si tiene data-test → usar getByTestId en el código
+# Si no → usar getByRole o CSS con comentario justificativo
 ```
 
 ## Manejo de errores comunes
